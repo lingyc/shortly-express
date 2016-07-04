@@ -23,9 +23,41 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
 
+
+app.post('/signup', 
+function(req, res) {
+  console.log(req.body);
+  new User({ username: req.body.username }).fetch().then(function(found) {
+    if (found) {
+      res.status(200).send(found.attributes);
+    } else {
+      Users.create({
+        username: req.body.username,
+        password: req.body.password
+      })
+      .then(function(user) {
+        res.redirect('/');
+        //res.status(200).send(user);
+      });
+    }
+  });
+});
+
+
+
 app.get('/', 
 function(req, res) {
-  res.render('index');
+  res.render('login');
+});
+
+app.post('/login', 
+function(req, res) {
+  res.redirect('/create');
+});
+
+app.get('/signup', 
+function(req, res) {
+  res.render('signup');
 });
 
 app.get('/create', 
