@@ -23,7 +23,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 app.use(session({
-  secret: 'keyboard cat',
+  secret: 'tryrtyrty',
   resave: true,
   saveUninitialized: true,
 }));
@@ -31,11 +31,16 @@ app.use(session({
 var checkUser = function(req, res) {
   new User({ username: req.body.username }).fetch().then(function(found) {
     if (found) {
-      res.status(200).send(found.attributes);
+      res.redirect('/signup');
     } else {
+      var salt = bcrypt.genSaltSync(10);
+      var hash = bcrypt.hashSync(req.body.password, salt);
+      console.log('salt: ', salt);
+      console.log('hash: ', hash);
       Users.create({
         username: req.body.username,
-        password: req.body.password
+        password: hash,
+        salt: salt
       })
       .then(function(user) {
         res.redirect('/');
@@ -45,6 +50,7 @@ var checkUser = function(req, res) {
 };
 
 var restrict = function(req, res, next) {
+  console.log('its in the restrict function');
   if (req.session.user) {
     next();
   } else {
@@ -60,21 +66,29 @@ function(req, res) {
 
 app.get('/logout',
 function(req, res) {
+  res.redirect('/signup');
   req.session.destroy(function() {
-    res.redirect('/');
+    console.log('itlsw');
   });
 });
 
 app.post('/login', 
 function(req, res) {
+  new User({ username: req.body.username}).fetch().then(function(foundUser) {
+    if (foundUser) {
+      var hash = bcrypt.hashSync(req.body.password, foundUser.attributes.salt);
+      new User({ username: req.body.username, password: hash }).fetch().then(function(found) {
+        if (found) {
 
-  new User({ username: req.body.username, password: req.body.password }).fetch().then(function(found) {
-    if (found) {
+          req.session.user = req.body.username;
+          console.log(req.session.user);
+          res.redirect('/');
 
-      req.session.user = req.body.username;
-      console.log(req.session.user);
-      res.redirect('/');
-
+        } else {
+          console.log('bad login');
+          res.redirect('/login');
+        }
+      });
     } else {
       console.log('bad login');
       res.redirect('/login');
@@ -90,6 +104,11 @@ function(req, res) {
 app.get('/signup', 
 function(req, res) {
   res.render('signup');
+});
+
+app.get('/login', 
+function(req, res) {
+  res.render('login');
 });
 
 app.get('/create', 

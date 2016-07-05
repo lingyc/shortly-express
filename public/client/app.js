@@ -4,7 +4,6 @@ window.Shortly = Backbone.View.extend({
   events: {
     'click li a.index': 'renderIndexView',
     'click li a.create': 'renderCreateView',
-    // 'click .logout': 'renderLogOutView'
   },
 
   initialize: function() {
@@ -30,6 +29,7 @@ window.Shortly = Backbone.View.extend({
   renderCreateView: function(e) {
     e && e.preventDefault();
     this.router.navigate('/create', { trigger: true });
+
   },
 
   updateNav: function(routeName) {
@@ -37,14 +37,15 @@ window.Shortly = Backbone.View.extend({
       .removeClass('selected')
       .filter('.' + routeName)
       .addClass('selected');
-  },
-
-  // renderLogOutView: function(e) {
-  //   e && e.preventDefault();
-  //   console.log('click');
-  //   //
-  //   this.router.navigate('/logout', { trigger: true });
-
-  // }
-
+  }
 });
+
+// $(document).ready(function() {
+//   $('.logout').on('click', function() {
+//     console.log('jquery works!!!');
+//     $.get('http://127.0.0.1:4568/logout', function(a, b) {
+//       window.location.reload();
+//     });
+//   });
+  
+// });
