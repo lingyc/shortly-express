@@ -3,6 +3,7 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var bcrypt = require('bcryptjs');
+var session = require('express-session');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -21,10 +22,13 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
-app.use(express.sessions());
+app.use(session({
+  secret: 'keyboard cat',
+  resave: true,
+  saveUninitialized: true,
+}));
 
 var currentUserId;
-var loggedIn;
 
 var checkUser = function(req, res) {
   new User({ username: req.body.username }).fetch().then(function(found) {
@@ -37,33 +41,30 @@ var checkUser = function(req, res) {
       })
       .then(function(user) {
         res.redirect('/');
-        //res.status(200).send(user);
       });
     }
   });
 };
 
+var restrict = function(req, res, next) {
+  if (req.session.user) {
+    next();
+  } else {
+    req.session.error = 'Access denied!';
+    res.render('login');
+  }
+};
+
 app.post('/signup', 
 function(req, res) {
-  console.log(req.body);
   checkUser(req, res);
 });
 
 app.get('/logout',
 function(req, res) {
-  console.log('its going to loggOUT!!');
-  loggedIn = undefined;
-  res.redirect('/');
-});
-
-app.get('/', 
-function(req, res) {
-  console.log('loggedIn:',loggedIn);
-  if (!loggedIn) {
-    res.render('login');
-  } else {
-    res.render('index');    
-  }
+  req.session.destroy(function() {
+    res.redirect('/');
+  });
 });
 
 app.post('/login', 
@@ -71,22 +72,21 @@ function(req, res) {
 
   new User({ username: req.body.username, password: req.body.password}).fetch().then(function(found) {
     if (found) {
-
       currentUserId = found.attributes.id;
-      loggedIn = true;
-      console.log('found', found.attributes.id);
+
+      req.session.user = req.body.username;
       res.redirect('/');
-
-      
-//initialize sessions//
-
-
 
     } else {
       console.log('bad login');
       res.redirect('/login');
     }
   });
+});
+
+app.get('/', restrict,
+function(req, res) {
+  res.render('index');
 });
 
 app.get('/signup', 
@@ -105,10 +105,10 @@ function(req, res) {
     console.log(links.models);
     var final = [];
     for (var i = 0; i < links.models.length; i++) {
-    if (links.models[i].attributes.userId === currentUserId) {
-      final.push(links.models[i]);
+      if (links.models[i].attributes.userId === currentUserId) {
+        final.push(links.models[i]);
+      }
     }
-  }
 
     res.status(200).send(final);
   });
@@ -129,7 +129,7 @@ function(req, res) {
     } else {
       util.getUrlTitle(uri, function(err, title) {
         if (err) {
-          console.log('Error reading URL heading: ', err);
+          // console.log('Error reading URL heading: ', err);
           return res.sendStatus(404);
         }
 
@@ -150,14 +150,7 @@ function(req, res) {
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
-var restrict = function(req, res, next) {
-  if (req.session.user) {
-    next();
-  } else {
-    req.session.error = 'Access denied!';
-    res.redirect('/login');
-  }
-};
+
 
 
 /************************************************************/
