@@ -4,6 +4,8 @@ var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var bcrypt = require('bcryptjs');
 var session = require('express-session');
+var cookieParser = require('cookie-parser');
+var passport = require('passport');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -21,11 +23,35 @@ app.use(partials());
 app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+app.use(function (req, res, next) {
+  // check if client sent cookie
+  var cookie = req.cookies.cookieName;
+  if (cookie === undefined) {
+    // no: set a new cookie
+    var randomNumber = Math.random().toString();
+    randomNumber = randomNumber.substring(2, randomNumber.length);
+    res.cookie('cookieName', randomNumber, { maxAge: 9000, httpOnly: true });
+    console.log('cookie created successfully');
+  } else {
+    // yes, cookie was already present 
+    console.log('cookie exists', cookie);
+  } 
+  next(); // <-- important!
+});
+
 app.use(express.static(__dirname + '/public'));
 app.use(session({
   secret: 'tryrtyrty',
   resave: true,
-  saveUninitialized: true,
+  saveUninitialized: true
+  // cookies: {
+  //   path: '/',
+  //   httpOnly: true,
+  //   secure: false,
+  //   maxAge: 30000
+  // }
 }));
 
 var checkUser = function(req, res) {
@@ -61,6 +87,7 @@ var restrict = function(req, res, next) {
 
 app.post('/signup', 
 function(req, res) {
+  console.log('here is the cookie(s)', req.cookies);
   checkUser(req, res);
 });
 
@@ -74,6 +101,7 @@ function(req, res) {
 
 app.post('/login', 
 function(req, res) {
+  console.log('here is the cookie', req.session.cookie);
   new User({ username: req.body.username}).fetch().then(function(foundUser) {
     if (foundUser) {
       var hash = bcrypt.hashSync(req.body.password, foundUser.attributes.salt);
