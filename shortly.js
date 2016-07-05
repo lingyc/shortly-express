@@ -22,11 +22,10 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
+var currentUserId;
+var loggedIn;
 
-
-app.post('/signup', 
-function(req, res) {
-  console.log(req.body);
+var checkUser = function(req, res) {
   new User({ username: req.body.username }).fetch().then(function(found) {
     if (found) {
       res.status(200).send(found.attributes);
@@ -41,18 +40,56 @@ function(req, res) {
       });
     }
   });
+};
+
+app.post('/signup', 
+function(req, res) {
+  console.log(req.body);
+  checkUser(req, res);
 });
 
-
+app.get('/logout',
+function(req, res) {
+  console.log('its going to loggOUT!!');
+  loggedIn = undefined;
+  res.redirect('/');
+});
 
 app.get('/', 
 function(req, res) {
-  res.render('login');
+  console.log('loggedIn:',loggedIn);
+  if (!loggedIn) {
+    res.render('login');
+  } else {
+    res.render('index');    
+  }
 });
 
 app.post('/login', 
 function(req, res) {
-  res.redirect('/create');
+
+  new User({ username: req.body.username, password: req.body.password}).fetch().then(function(found) {
+    if (found) {
+
+
+
+      currentUserId = found.attributes.id;
+      loggedIn = true;
+      console.log('found', found.attributes.id);
+      res.redirect('/');
+
+
+//initialize sessions//
+
+
+
+
+
+    } else {
+      console.log('bad login');
+      res.redirect('/login');
+    }
+  });
 });
 
 app.get('/signup', 
@@ -68,6 +105,7 @@ function(req, res) {
 app.get('/links', 
 function(req, res) {
   Links.reset().fetch().then(function(links) {
+    
     res.status(200).send(links.models);
   });
 });
@@ -94,7 +132,8 @@ function(req, res) {
         Links.create({
           url: uri,
           title: title,
-          baseUrl: req.headers.origin
+          baseUrl: req.headers.origin,
+          userId: currentUserId
         })
         .then(function(newLink) {
           res.status(200).send(newLink);
