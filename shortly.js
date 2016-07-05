@@ -28,8 +28,6 @@ app.use(session({
   saveUninitialized: true,
 }));
 
-var currentUserId;
-
 var checkUser = function(req, res) {
   new User({ username: req.body.username }).fetch().then(function(found) {
     if (found) {
@@ -101,16 +99,19 @@ function(req, res) {
 
 app.get('/links', 
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    console.log(links.models);
-    var final = [];
-    for (var i = 0; i < links.models.length; i++) {
-      if (links.models[i].attributes.userId === currentUserId) {
-        final.push(links.models[i]);
-      }
-    }
 
-    res.status(200).send(final);
+  new User({ username: req.session.user }).fetch().then(function(user) {
+    Links.reset().fetch().then(function(links) {
+      // console.log(links.models);
+      var final = [];
+      for (var i = 0; i < links.models.length; i++) {
+        if (links.models[i].attributes.userId === user.attributes.id) {
+          final.push(links.models[i]);
+        }
+      }
+
+      res.status(200).send(final);
+    });
   });
 });
 
@@ -123,27 +124,29 @@ function(req, res) {
     return res.sendStatus(404);
   }
 
-  new Link({ url: uri, userId: currentUserId }).fetch().then(function(found) {
-    if (found) {
-      res.status(200).send(found.attributes);
-    } else {
-      util.getUrlTitle(uri, function(err, title) {
-        if (err) {
-          // console.log('Error reading URL heading: ', err);
-          return res.sendStatus(404);
-        }
+  new User({ username: req.session.user }).fetch().then(function(user) {
+    new Link({ url: uri, userId: user.attributes.id }).fetch().then(function(found) {
+      if (found) {
+        res.status(200).send(found.attributes);
+      } else {
+        util.getUrlTitle(uri, function(err, title) {
+          if (err) {
+            // console.log('Error reading URL heading: ', err);
+            return res.sendStatus(404);
+          }
 
-        Links.create({
-          url: uri,
-          title: title,
-          baseUrl: req.headers.origin,
-          userId: currentUserId
-        })
-        .then(function(newLink) {
-          res.status(200).send(newLink);
+          Links.create({
+            url: uri,
+            title: title,
+            baseUrl: req.headers.origin,
+            userId: user.attributes.id
+          })
+          .then(function(newLink) {
+            res.status(200).send(newLink);
+          });
         });
-      });
-    }
+      }
+    });
   });
 });
 
