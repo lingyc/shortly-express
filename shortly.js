@@ -68,11 +68,11 @@ function(req, res) {
 app.post('/login', 
 function(req, res) {
 
-  new User({ username: req.body.username, password: req.body.password}).fetch().then(function(found) {
+  new User({ username: req.body.username, password: req.body.password }).fetch().then(function(found) {
     if (found) {
-      currentUserId = found.attributes.id;
 
       req.session.user = req.body.username;
+      console.log(req.session.user);
       res.redirect('/');
 
     } else {
@@ -101,8 +101,8 @@ app.get('/links',
 function(req, res) {
 
   new User({ username: req.session.user }).fetch().then(function(user) {
+    console.log(user);
     Links.reset().fetch().then(function(links) {
-      // console.log(links.models);
       var final = [];
       for (var i = 0; i < links.models.length; i++) {
         if (links.models[i].attributes.userId === user.attributes.id) {
@@ -163,21 +163,23 @@ function(req, res) {
 /************************************************************/
 
 app.get('/*', function(req, res) {
-  new Link({ code: req.params[0], userId: currentUserId }).fetch().then(function(link) {
-    if (!link) {
-      res.redirect('/');
-    } else {
-      var click = new Click({
-        linkId: link.get('id')
-      });
-
-      click.save().then(function() {
-        link.set('visits', link.get('visits') + 1);
-        link.save().then(function() {
-          return res.redirect(link.get('url'));
+  new User({ username: req.session.user || req.body.username }).fetch().then(function(user) {
+    new Link({ code: req.params[0], userId: user.attributes.id }).fetch().then(function(link) {
+      if (!link) {
+        res.redirect('/');
+      } else {
+        var click = new Click({
+          linkId: link.get('id')
         });
-      });
-    }
+
+        click.save().then(function() {
+          link.set('visits', link.get('visits') + 1);
+          link.save().then(function() {
+            return res.redirect(link.get('url'));
+          });
+        });
+      }
+    });
   });
 });
 
