@@ -2,7 +2,7 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
-
+var bcrypt = require('bcryptjs');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -21,6 +21,7 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
+app.use(express.sessions());
 
 var currentUserId;
 var loggedIn;
@@ -71,17 +72,13 @@ function(req, res) {
   new User({ username: req.body.username, password: req.body.password}).fetch().then(function(found) {
     if (found) {
 
-
-
       currentUserId = found.attributes.id;
       loggedIn = true;
       console.log('found', found.attributes.id);
       res.redirect('/');
 
-
+      
 //initialize sessions//
-
-
 
 
 
@@ -105,8 +102,15 @@ function(req, res) {
 app.get('/links', 
 function(req, res) {
   Links.reset().fetch().then(function(links) {
-    
-    res.status(200).send(links.models);
+    console.log(links.models);
+    var final = [];
+    for (var i = 0; i < links.models.length; i++) {
+    if (links.models[i].attributes.userId === currentUserId) {
+      final.push(links.models[i]);
+    }
+  }
+
+    res.status(200).send(final);
   });
 });
 
@@ -119,7 +123,7 @@ function(req, res) {
     return res.sendStatus(404);
   }
 
-  new Link({ url: uri }).fetch().then(function(found) {
+  new Link({ url: uri, userId: currentUserId }).fetch().then(function(found) {
     if (found) {
       res.status(200).send(found.attributes);
     } else {
@@ -146,7 +150,14 @@ function(req, res) {
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
-
+var restrict = function(req, res, next) {
+  if (req.session.user) {
+    next();
+  } else {
+    req.session.error = 'Access denied!';
+    res.redirect('/login');
+  }
+};
 
 
 /************************************************************/
@@ -156,7 +167,7 @@ function(req, res) {
 /************************************************************/
 
 app.get('/*', function(req, res) {
-  new Link({ code: req.params[0] }).fetch().then(function(link) {
+  new Link({ code: req.params[0], userId: currentUserId }).fetch().then(function(link) {
     if (!link) {
       res.redirect('/');
     } else {

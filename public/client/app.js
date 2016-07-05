@@ -28,7 +28,7 @@ window.Shortly = Backbone.View.extend({
   },
 
   renderCreateView: function(e) {
-    console.log('in createviiiiiew')
+    console.log('in createviiiiiew');
     e && e.preventDefault();
     this.router.navigate('/create', { trigger: true });
   },
@@ -41,7 +41,7 @@ window.Shortly = Backbone.View.extend({
   },
 
   renderLogOutView: function(e) {
-     e && e.preventDefault();
+    e && e.preventDefault();
     console.log('click');
     //
     this.router.navigate('/logout', { trigger: true });
