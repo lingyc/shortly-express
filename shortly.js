@@ -6,6 +6,8 @@ var bcrypt = require('bcryptjs');
 var session = require('express-session');
 var cookieParser = require('cookie-parser');
 var passport = require('passport');
+var passport2 = require('passport-local');
+var GitHubStrategy = require('passport-github').Strategy;
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -13,9 +15,30 @@ var User = require('./app/models/user');
 var Links = require('./app/collections/links');
 var Link = require('./app/models/link');
 var Click = require('./app/models/click');
-
 var app = express();
+passport.use(new GitHubStrategy({
+  clientID: '28ba713ebb135d1dac98',
+  clientSecret: '89fe81d19f16b7674073c5c7df9d7ccc56056925',
+  callbackURL: "http://127.0.0.1:4568/auth/github/callback"
+},
+  function(accessToken, refreshToken, profile, cb) {
+    User.findOrCreate({ githubId: profile.id }, function (err, user) {
+      return cb(err, user);
+    });
+  }
+));
 
+passport.serializeUser(function(user, done) {
+  done(null, user.id); 
+});
+
+passport.deserializeUser(function(obj, done) {
+  done(null, obj);
+});
+
+
+app.use(passport.initialize());
+app.use(passport.session());
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 app.use(partials());
@@ -24,6 +47,7 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
+
 
 app.use(function (req, res, next) {
   // check if client sent cookie
@@ -42,17 +66,11 @@ app.use(function (req, res, next) {
 });
 
 app.use(express.static(__dirname + '/public'));
-app.use(session({
-  secret: 'tryrtyrty',
-  resave: true,
-  saveUninitialized: true
-  // cookies: {
-  //   path: '/',
-  //   httpOnly: true,
-  //   secure: false,
-  //   maxAge: 30000
-  // }
-}));
+// app.use(session({
+//   secret: 'tryrtyrty',
+//   resave: true,
+//   saveUninitialized: true
+// }));
 
 var checkUser = function(req, res) {
   new User({ username: req.body.username }).fetch().then(function(found) {
@@ -76,7 +94,7 @@ var checkUser = function(req, res) {
 };
 
 var restrict = function(req, res, next) {
-  console.log('its in the restrict function');
+  console.log('its in the restrict function', req.session);
   if (req.session.user) {
     next();
   } else {
@@ -99,30 +117,35 @@ function(req, res) {
   });
 });
 
-app.post('/login', 
-function(req, res) {
-  console.log('here is the cookie', req.session.cookie);
-  new User({ username: req.body.username}).fetch().then(function(foundUser) {
-    if (foundUser) {
-      var hash = bcrypt.hashSync(req.body.password, foundUser.attributes.salt);
-      new User({ username: req.body.username, password: hash }).fetch().then(function(found) {
-        if (found) {
+app.post('/login'
+  ,
+  passport.authenticate('github', 
+    { successRedirect: '/', 
+      failureRedirect: '/login',
+      failureFlash: true } ));
+// function(req, res) {
+//   console.log('here is the cookie', req.session.cookie);
+//   new User({ username: req.body.username}).fetch().then(function(foundUser) {
+//     if (foundUser) {
+//       var hash = bcrypt.hashSync(req.body.password, foundUser.attributes.salt);
+//       new User({ username: req.body.username, password: hash }).fetch().then(function(found) {
+//         if (found) {
 
-          req.session.user = req.body.username;
-          console.log(req.session.user);
-          res.redirect('/');
+//           req.session.user = req.body.username;
+//           console.log(req.session.user);
+//           res.redirect('/');
 
-        } else {
-          console.log('bad login');
-          res.redirect('/login');
-        }
-      });
-    } else {
-      console.log('bad login');
-      res.redirect('/login');
-    }
-  });
-});
+//         } else {
+//           console.log('bad login');
+//           res.redirect('/login');
+//         }
+//       });
+//     } else {
+//       console.log('bad login');
+//       res.redirect('/login');
+//     }
+//   });
+// });
 
 app.get('/', restrict,
 function(req, res) {
